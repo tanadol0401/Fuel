@@ -38,7 +38,6 @@
     #key-status { font-size: 12px; color: #f5a623; margin-top: 5px; min-height: 16px; }
     .divider { border: none; border-top: 1px solid #333; margin: 18px 0; }
 
-    /* ปุ่มเลือกประเภทน้ำมัน */
     .fuel-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -53,7 +52,6 @@
       border-radius: 8px;
       cursor: pointer;
       text-align: center;
-      font-size: 13px;
       transition: all 0.15s;
     }
     .fuel-btn:active { opacity: 0.7; }
@@ -64,26 +62,26 @@
     }
     .fuel-btn .fuel-icon { font-size: 28px; display: block; margin-bottom: 6px; }
     .fuel-btn .fuel-name { font-size: 15px; font-weight: bold; display: block; }
-    .fuel-btn .fuel-desc { font-size: 11px; color: #aaa; display: block; margin-top: 2px; }
-    .fuel-btn.selected .fuel-desc { color: #f5a623; }
+    .fuel-btn .fuel-code { font-size: 11px; color: #555; display: block; margin-top: 2px; }
+    .fuel-btn.selected .fuel-code { color: #f5a623; }
 
-    .field-tag { font-size: 11px; color: #555; text-align: right; margin-top: 2px; margin-bottom: 8px; }
-
-    /* preview */
     .preview-box {
       background: #2c2f35;
-      border: 1px solid #444;
-      border-radius: 6px;
-      padding: 10px 14px;
-      margin-top: 10px;
-      font-size: 12px;
-      color: #aaa;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-top: 14px;
       display: none;
     }
-    .preview-box .val { color: #f5a623; font-weight: bold; }
+    .preview-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+    .preview-row .plabel { color: #aaa; }
+    .preview-row .pval { color: #f5a623; font-weight: bold; }
+    .preview-encoded { text-align: center; margin-top: 8px; padding-top: 8px; border-top: 1px solid #444; }
+    .preview-encoded .elabel { font-size: 11px; color: #555; }
+    .preview-encoded .eval { font-size: 22px; font-weight: bold; color: white; }
 
     .submit-btn {
-      margin-top: 20px;
+      margin-top: 16px;
       padding: 14px;
       background: #f5a623;
       color: #111;
@@ -109,26 +107,35 @@
 
   <hr class="divider">
 
-  <label>⛽ ประเภทน้ำมัน <span style="color:#555;font-size:11px;">→ field8</span></label>
+  <label>⛽ ประเภทน้ำมัน</label>
   <div class="fuel-grid">
-    <div class="fuel-btn" onclick="selectFuel(this, 'diesel')">
-      <span class="fuel-icon">🚛</span>
+    <div class="fuel-btn" onclick="selectFuel(this, 1)">
       <span class="fuel-name">ดีเซล</span>
-      <span class="fuel-desc">Diesel</span>
+      <span class="fuel-code">รหัส 1xxx</span>
     </div>
-    <div class="fuel-btn" onclick="selectFuel(this, 'solar')">
-      <span class="fuel-icon">☀️</span>
+    <div class="fuel-btn" onclick="selectFuel(this, 2)">
       <span class="fuel-name">โซล่า</span>
-      <span class="fuel-desc">Solar</span>
+      <span class="fuel-code">รหัส 2xxx</span>
     </div>
   </div>
 
-  <label>🧴 ปริมาณ (ลิตร) <span style="color:#555;font-size:11px;">→ field8</span></label>
-  <input type="number" id="fuelAmount" placeholder="เช่น 50" min="0" step="0.5" oninput="updatePreview()">
+  <label>🧴 ปริมาณ (ลิตร) สูงสุด 999 ลิตร</label>
+  <input type="number" id="fuelAmount" placeholder="เช่น 50" min="1" max="999" step="1" oninput="updatePreview()">
 
-  <!-- Preview ค่าที่จะส่ง -->
+  <!-- Preview -->
   <div class="preview-box" id="preview">
-    ค่าที่จะเก็บใน field8: <span class="val" id="preview-val">—</span>
+    <div class="preview-row">
+      <span class="plabel">ประเภท</span>
+      <span class="pval" id="p-type">—</span>
+    </div>
+    <div class="preview-row">
+      <span class="plabel">ปริมาณ</span>
+      <span class="pval" id="p-amount">—</span>
+    </div>
+    <div class="preview-encoded">
+      <div class="elabel">ค่าที่เก็บใน field8</div>
+      <div class="eval" id="p-encoded">—</div>
+    </div>
   </div>
 
   <button class="submit-btn" onclick="sendData()">📤 ส่งข้อมูล</button>
@@ -136,7 +143,8 @@
 
 <script>
   const KEY_STORAGE = "ts_write_key";
-  let selectedFuel = "";
+  let selectedFuelCode = 0;
+  let selectedFuelName = "";
 
   window.onload = function () {
     const saved = localStorage.getItem(KEY_STORAGE);
@@ -153,19 +161,30 @@
     document.getElementById("key-status").innerText = "✅ บันทึก Key แล้ว";
   }
 
-  function selectFuel(el, val) {
+  function selectFuel(el, code) {
     document.querySelectorAll(".fuel-btn").forEach(b => b.classList.remove("selected"));
     el.classList.add("selected");
-    selectedFuel = val;
+    selectedFuelCode = code;
+    selectedFuelName = code === 1 ? "ดีเซล" : "โซล่า";
     updatePreview();
   }
 
+  function encodeValue(fuelCode, amount) {
+    // เช่น diesel(1) + 50L = 1050
+    //      solar(2)  + 30L = 2030
+    const padded = String(amount).padStart(3, "0");
+    return parseInt(fuelCode + padded);
+  }
+
   function updatePreview() {
-    const amount = document.getElementById("fuelAmount").value.trim();
+    const amount = parseInt(document.getElementById("fuelAmount").value);
     const preview = document.getElementById("preview");
-    if (selectedFuel && amount) {
-      const combined = selectedFuel + "," + amount;
-      document.getElementById("preview-val").innerText = combined;
+
+    if (selectedFuelCode && amount > 0 && amount <= 999) {
+      const encoded = encodeValue(selectedFuelCode, amount);
+      document.getElementById("p-type").innerText = selectedFuelName;
+      document.getElementById("p-amount").innerText = amount + " ลิตร";
+      document.getElementById("p-encoded").innerText = encoded;
       preview.style.display = "block";
     } else {
       preview.style.display = "none";
@@ -174,25 +193,22 @@
 
   function sendData() {
     const key    = document.getElementById("apikey").value.trim();
-    const amount = document.getElementById("fuelAmount").value.trim();
+    const amount = parseInt(document.getElementById("fuelAmount").value);
 
-    if (!key)          { setStatus("❌ กรุณาใส่ Write API Key", "#f85149"); return; }
-    if (!selectedFuel) { setStatus("❌ กรุณาเลือกประเภทน้ำมัน", "#f85149"); return; }
-    if (!amount)       { setStatus("❌ กรุณาใส่ปริมาณ (ลิตร)", "#f85149"); return; }
+    if (!key)              { setStatus("❌ กรุณาใส่ Write API Key", "#f85149"); return; }
+    if (!selectedFuelCode) { setStatus("❌ กรุณาเลือกประเภทน้ำมัน", "#f85149"); return; }
+    if (!amount || amount > 999) { setStatus("❌ กรุณาใส่ปริมาณ 1-999 ลิตร", "#f85149"); return; }
 
-    // รวมเป็น "diesel,50" หรือ "solar,50"
-    const combined = selectedFuel + "," + amount;
-    const fuelLabel = selectedFuel === "diesel" ? "ดีเซล" : "โซล่า";
-
+    const encoded = encodeValue(selectedFuelCode, amount);
     setStatus("กำลังส่ง...", "#aaa");
 
-    fetch(`https://api.thingspeak.com/update?api_key=${key}&field8=${encodeURIComponent(combined)}`)
+    fetch(`https://api.thingspeak.com/update?api_key=${key}&field8=${encoded}`)
       .then(r => r.text())
       .then(res => {
         if (res === "0") {
           setStatus("❌ ส่งไม่สำเร็จ (รอ 15 วิแล้วลองใหม่)", "#f85149");
         } else {
-          setStatus(`✅ ส่งสำเร็จ! ${fuelLabel} ${amount} ลิตร → field8 (Entry: ${res})`, "#73bf69");
+          setStatus(`✅ ส่งสำเร็จ! ${selectedFuelName} ${amount} ลิตร → ${encoded} (Entry: ${res})`, "#73bf69");
         }
       })
       .catch(e => setStatus("❌ Error: " + e, "#f85149"));
