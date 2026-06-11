@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      background: #181b1f;
+      color: white;
+      font-family: sans-serif;
+      padding: 20px;
+      max-width: 400px;
+      margin: 0 auto;
+    }
+    label { display: block; margin-top: 14px; margin-bottom: 8px; color: #aaa; font-size: 13px; }
+    input {
+      width: 100%;
+      padding: 9px 10px;
+      background: #2c2f35;
+      border: 1px solid #444;
+      color: white;
+      border-radius: 5px;
+      font-size: 14px;
+    }
+    .key-row { display: flex; gap: 8px; align-items: center; }
+    .key-row input { flex: 1; }
+    .btn-save {
+      padding: 9px 14px;
+      background: #1e6fbf;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    #key-status { font-size: 12px; color: #f5a623; margin-top: 5px; min-height: 16px; }
+    .divider { border: none; border-top: 1px solid #333; margin: 18px 0; }
+
+    /* ปุ่มเลือกประเภทน้ำมัน */
+    .fuel-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+    .fuel-btn {
+      padding: 16px 10px;
+      background: #2c2f35;
+      border: 2px solid #444;
+      color: white;
+      border-radius: 8px;
+      cursor: pointer;
+      text-align: center;
+      font-size: 13px;
+      transition: all 0.15s;
+    }
+    .fuel-btn:active { opacity: 0.7; }
+    .fuel-btn.selected {
+      border-color: #f5a623;
+      background: #2e2510;
+      color: #f5a623;
+    }
+    .fuel-btn .fuel-icon { font-size: 28px; display: block; margin-bottom: 6px; }
+    .fuel-btn .fuel-name { font-size: 15px; font-weight: bold; display: block; }
+    .fuel-btn .fuel-desc { font-size: 11px; color: #aaa; display: block; margin-top: 2px; }
+    .fuel-btn.selected .fuel-desc { color: #f5a623; }
+
+    .field-tag { font-size: 11px; color: #555; text-align: right; margin-top: 2px; margin-bottom: 8px; }
+
+    /* preview */
+    .preview-box {
+      background: #2c2f35;
+      border: 1px solid #444;
+      border-radius: 6px;
+      padding: 10px 14px;
+      margin-top: 10px;
+      font-size: 12px;
+      color: #aaa;
+      display: none;
+    }
+    .preview-box .val { color: #f5a623; font-weight: bold; }
+
+    .submit-btn {
+      margin-top: 20px;
+      padding: 14px;
+      background: #f5a623;
+      color: #111;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      width: 100%;
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .submit-btn:active { opacity: 0.7; }
+    #status { margin-top: 12px; font-size: 13px; min-height: 18px; text-align: center; }
+  </style>
+</head>
+<body>
+
+  <label>🔑 Write API Key</label>
+  <div class="key-row">
+    <input type="text" id="apikey" placeholder="ใส่ Write API Key">
+    <button class="btn-save" onclick="saveKey()">💾 บันทึก</button>
+  </div>
+  <div id="key-status"></div>
+
+  <hr class="divider">
+
+  <label>⛽ ประเภทน้ำมัน <span style="color:#555;font-size:11px;">→ field8</span></label>
+  <div class="fuel-grid">
+    <div class="fuel-btn" onclick="selectFuel(this, 'diesel')">
+      <span class="fuel-icon">🚛</span>
+      <span class="fuel-name">ดีเซล</span>
+      <span class="fuel-desc">Diesel</span>
+    </div>
+    <div class="fuel-btn" onclick="selectFuel(this, 'solar')">
+      <span class="fuel-icon">☀️</span>
+      <span class="fuel-name">โซล่า</span>
+      <span class="fuel-desc">Solar</span>
+    </div>
+  </div>
+
+  <label>🧴 ปริมาณ (ลิตร) <span style="color:#555;font-size:11px;">→ field8</span></label>
+  <input type="number" id="fuelAmount" placeholder="เช่น 50" min="0" step="0.5" oninput="updatePreview()">
+
+  <!-- Preview ค่าที่จะส่ง -->
+  <div class="preview-box" id="preview">
+    ค่าที่จะเก็บใน field8: <span class="val" id="preview-val">—</span>
+  </div>
+
+  <button class="submit-btn" onclick="sendData()">📤 ส่งข้อมูล</button>
+  <div id="status"></div>
+
+<script>
+  const KEY_STORAGE = "ts_write_key";
+  let selectedFuel = "";
+
+  window.onload = function () {
+    const saved = localStorage.getItem(KEY_STORAGE);
+    if (saved) {
+      document.getElementById("apikey").value = saved;
+      document.getElementById("key-status").innerText = "✅ ใช้ key ที่บันทึกไว้";
+    }
+  };
+
+  function saveKey() {
+    const key = document.getElementById("apikey").value.trim();
+    if (!key) { document.getElementById("key-status").innerText = "❌ กรุณาใส่ API Key"; return; }
+    localStorage.setItem(KEY_STORAGE, key);
+    document.getElementById("key-status").innerText = "✅ บันทึก Key แล้ว";
+  }
+
+  function selectFuel(el, val) {
+    document.querySelectorAll(".fuel-btn").forEach(b => b.classList.remove("selected"));
+    el.classList.add("selected");
+    selectedFuel = val;
+    updatePreview();
+  }
+
+  function updatePreview() {
+    const amount = document.getElementById("fuelAmount").value.trim();
+    const preview = document.getElementById("preview");
+    if (selectedFuel && amount) {
+      const combined = selectedFuel + "," + amount;
+      document.getElementById("preview-val").innerText = combined;
+      preview.style.display = "block";
+    } else {
+      preview.style.display = "none";
+    }
+  }
+
+  function sendData() {
+    const key    = document.getElementById("apikey").value.trim();
+    const amount = document.getElementById("fuelAmount").value.trim();
+
+    if (!key)          { setStatus("❌ กรุณาใส่ Write API Key", "#f85149"); return; }
+    if (!selectedFuel) { setStatus("❌ กรุณาเลือกประเภทน้ำมัน", "#f85149"); return; }
+    if (!amount)       { setStatus("❌ กรุณาใส่ปริมาณ (ลิตร)", "#f85149"); return; }
+
+    // รวมเป็น "diesel,50" หรือ "solar,50"
+    const combined = selectedFuel + "," + amount;
+    const fuelLabel = selectedFuel === "diesel" ? "ดีเซล" : "โซล่า";
+
+    setStatus("กำลังส่ง...", "#aaa");
+
+    fetch(`https://api.thingspeak.com/update?api_key=${key}&field8=${encodeURIComponent(combined)}`)
+      .then(r => r.text())
+      .then(res => {
+        if (res === "0") {
+          setStatus("❌ ส่งไม่สำเร็จ (รอ 15 วิแล้วลองใหม่)", "#f85149");
+        } else {
+          setStatus(`✅ ส่งสำเร็จ! ${fuelLabel} ${amount} ลิตร → field8 (Entry: ${res})`, "#73bf69");
+        }
+      })
+      .catch(e => setStatus("❌ Error: " + e, "#f85149"));
+  }
+
+  function setStatus(msg, color) {
+    const el = document.getElementById("status");
+    el.innerText = msg;
+    el.style.color = color;
+  }
+</script>
+</body>
+</html>
