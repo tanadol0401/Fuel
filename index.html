@@ -179,7 +179,7 @@
     const preview = document.getElementById("preview");
 
     if (selectedFuelCode && amount > 0 && amount <= 999) {
-      document.getElementById("p-type").innerText = selectedFuelCode + " (" + selectedFuelName + ")";
+      document.getElementById("p-type").innerText = selectedFuelName;
       document.getElementById("p-amount").innerText = amount + " ลิตร";
       preview.style.display = "block";
     } else {
@@ -197,7 +197,7 @@
 
     setStatus("กำลังส่ง...", "#aaa");
 
-    fetch(`https://api.thingspeak.com/update?api_key=${key}&field1=${selectedFuelCode}&field2=${amount}`)
+    fetch(`https://api.thingspeak.com/update?api_key=${key}&field1=${encodeURIComponent(selectedFuelName)}&field2=${amount}`)
       .then(r => r.text())
       .then(res => {
         if (res === "0") {
