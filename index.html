@@ -127,16 +127,12 @@
   <!-- Preview -->
   <div class="preview-box" id="preview">
     <div class="preview-row">
-      <span class="plabel">ประเภท</span>
+      <span class="plabel">ประเภท (field1)</span>
       <span class="pval" id="p-type">—</span>
     </div>
     <div class="preview-row">
-      <span class="plabel">ปริมาณ</span>
+      <span class="plabel">ปริมาณ (field2)</span>
       <span class="pval" id="p-amount">—</span>
-    </div>
-    <div class="preview-encoded">
-      <div class="elabel">ค่าที่เก็บใน field8</div>
-      <div class="eval" id="p-encoded">—</div>
     </div>
   </div>
 
@@ -183,10 +179,8 @@
     const preview = document.getElementById("preview");
 
     if (selectedFuelCode && amount > 0 && amount <= 999) {
-      const encoded = encodeValue(selectedFuelCode, amount);
-      document.getElementById("p-type").innerText = selectedFuelName;
+      document.getElementById("p-type").innerText = selectedFuelCode + " (" + selectedFuelName + ")";
       document.getElementById("p-amount").innerText = amount + " ลิตร";
-      document.getElementById("p-encoded").innerText = encoded;
       preview.style.display = "block";
     } else {
       preview.style.display = "none";
@@ -201,7 +195,6 @@
     if (!selectedFuelCode) { setStatus("❌ กรุณาเลือกประเภทน้ำมัน", "#f85149"); return; }
     if (!amount || amount > 999) { setStatus("❌ กรุณาใส่ปริมาณ 1-999 ลิตร", "#f85149"); return; }
 
-    const encoded = encodeValue(selectedFuelCode, amount);
     setStatus("กำลังส่ง...", "#aaa");
 
     fetch(`https://api.thingspeak.com/update?api_key=${key}&field1=${selectedFuelCode}&field2=${amount}`)
@@ -210,7 +203,7 @@
         if (res === "0") {
           setStatus("❌ ส่งไม่สำเร็จ (รอ 15 วิแล้วลองใหม่)", "#f85149");
         } else {
-          setStatus(`✅ ส่งสำเร็จ! ${selectedFuelName} ${amount} ลิตร → ${encoded} (Entry: ${res})`, "#73bf69");
+          setStatus(`✅ ส่งสำเร็จ! ${selectedFuelName} ${amount} ลิตร (Entry: ${res})`, "#73bf69");
         }
       })
       .catch(e => setStatus("❌ Error: " + e, "#f85149"));
